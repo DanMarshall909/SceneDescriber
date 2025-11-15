@@ -16,8 +16,22 @@
     </ItemGroup>
 
     <ItemGroup>
+      <None Update="appsettings.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="appsettings.example.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
       <PackageReference Include="Emgu.CV" Version="4.5.5.4823" />
       <PackageReference Include="Microsoft.CognitiveServices.Speech" Version="1.21.0" />
+      <PackageReference Include="LangChain.Providers.OpenAI" Version="0.13.1" />
+      <PackageReference Include="LangChain.Providers.Anthropic" Version="0.13.1" />
+      <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
     </ItemGroup>
 
 </Project>

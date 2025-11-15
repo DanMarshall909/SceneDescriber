@@ -4,19 +4,44 @@ using System.Speech.Synthesis;
 using System;
 using System.Threading.Tasks;
 using System.IO;
+using Microsoft.Extensions.Configuration;
+using ConsoleApp1;
+
+// Load configuration
+var configuration = new ConfigurationBuilder()
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddEnvironmentVariables()
+    .Build();
+
+// Get configuration values
+var providerType = configuration["SceneDescriber:Provider"] ?? "OpenAI";
+var updateInterval = int.Parse(configuration["SceneDescriber:Detection:UpdateIntervalMs"] ?? "6000");
+var changeThreshold = double.Parse(configuration["SceneDescriber:Detection:ChangeThreshold"] ?? "0.1");
+var cameraIndex = int.Parse(configuration["SceneDescriber:Detection:CameraIndex"] ?? "0");
 
 // Variables to track state
 Mat? previousFrame = null;
 DateTime lastUpdate = DateTime.MinValue;
-const int UpdateInterval = 6000; // 6 seconds
-const double ChangeThreshold = 0.1; // 10% change threshold
 
-// Initialize OpenAI provider (can switch later)
-IObjectDetectionProvider provider = new OpenAIObjectDetectionProvider("your-openai-api-key");
+// Initialize LangChain provider with flexibility for multiple providers
+IObjectDetectionProvider provider = providerType.ToUpperInvariant() switch
+{
+    "ANTHROPIC" => LangChainObjectDetectionProvider.CreateAnthropic(
+        configuration["SceneDescriber:Anthropic:ApiKey"] ?? throw new InvalidOperationException("Anthropic API key not configured"),
+        configuration["SceneDescriber:Anthropic:Model"] ?? "claude-3-sonnet-20240229"
+    ),
+    "OPENAI" or _ => LangChainObjectDetectionProvider.CreateOpenAI(
+        configuration["SceneDescriber:OpenAI:ApiKey"] ?? throw new InvalidOperationException("OpenAI API key not configured"),
+        configuration["SceneDescriber:OpenAI:Model"] ?? "gpt-4-vision-preview"
+    )
+};
+
+Console.WriteLine($"Using provider: {providerType}");
 ObjectDetectionManager detectionManager = new ObjectDetectionManager(provider);
 
 // Set up the camera capture
-using VideoCapture capture = new VideoCapture(0);
+using VideoCapture capture = new VideoCapture(cameraIndex);
 SpeechSynthesizer synth = new SpeechSynthesizer();
 synth.SelectVoiceByHints(VoiceGender.Male, VoiceAge.Adult);
 
@@ -63,7 +88,7 @@ byte[] MatToBytes(Mat mat)
 // Check if enough time has passed for the next update
 bool EnoughTimePassed()
 {
-    return (DateTime.Now - lastUpdate).TotalMilliseconds >= UpdateInterval;
+    return (DateTime.Now - lastUpdate).TotalMilliseconds >= updateInterval;
 }
 
 // Check if the scene has changed significantly compared to the previous frame
@@ -85,5 +110,5 @@ bool SceneChangedSignificantly(Mat currentFrame)
     double totalPixels = diff.Rows * diff.Cols;
     double changeRatio = nonZeroCount / totalPixels;
 
-    return changeRatio >= ChangeThreshold;
+    return changeRatio >= changeThreshold;
 }
